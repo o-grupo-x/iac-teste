@@ -8,6 +8,7 @@ on:
       - gui
 
 env:
+  AWS_ID: 435238036812  
   AWS_REGION: us-east-1
   CLUSTER_NAME: eks-stage-cluster
 
