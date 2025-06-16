@@ -34,7 +34,8 @@ jobs:
         run: |
           echo "CLUSTER_NAME=$(terraform output -raw cluster_name)" >> $GITHUB_ENV
           echo "CLUSTER_ZONE=$(terraform output -raw cluster_zone)" >> $GITHUB_ENV
-        working-directory: infra/gcp
+        working-directory: gcp
+
       - name: Get Cluster Credentials
         run: gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_ZONE --project ${{ env.PROJECT_ID }}
 
