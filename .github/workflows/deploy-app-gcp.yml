@@ -30,6 +30,9 @@ jobs:
       - name: Configure Docker for GCP
         run: gcloud auth configure-docker
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Terraform Init
         run: terraform init
         working-directory: gcp
