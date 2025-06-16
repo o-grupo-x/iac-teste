@@ -47,6 +47,7 @@ jobs:
         run: gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_ZONE --project ${{ env.PROJECT_ID }}
 
       - name: Build and Push Docker Image
+        working-directory: frontend
         run: |
           docker build -t gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }} .
           docker push gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }}

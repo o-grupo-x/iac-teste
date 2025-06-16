@@ -31,6 +31,7 @@ jobs:
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
       - name: Build and Push Docker Image
+        working-directory: frontend
         run: |
           docker build -t $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }} .
           docker push $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }}
