@@ -27,12 +27,12 @@ jobs:
 
       - name: Configure Docker for ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin <ID_DA_SUA_CONTA_AWS>.dkr.ecr.$AWS_REGION.amazonaws.com
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t <ID_DA_SUA_CONTA_AWS>.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }} .
-          docker push <ID_DA_SUA_CONTA_AWS>.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }}
+          docker build -t $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }} .
+          docker push $AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }}
 
       - name: Update Kubeconfig
         run: aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
@@ -40,4 +40,4 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/
-          kubectl set image deployment/frontend frontend=<ID_DA_SUA_CONTA_AWS>.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }}
+          kubectl set image deployment/frontend frontend=$AWS_ID.dkr.ecr.$AWS_REGION.amazonaws.com/frontend:${{ github.sha }}
