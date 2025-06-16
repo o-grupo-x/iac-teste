@@ -1,0 +1,41 @@
+name: Deploy App GCP
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - gui
+
+env:
+  PROJECT_ID: app-chamada-5706
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Google Cloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_CREDENTIALS_JSON }}
+          export_default_credentials: true
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker
+
+      - name: Get Cluster Credentials
+        run: gcloud container clusters get-credentials gke-cluster --zone us-central1-a --project ${{ env.PROJECT_ID }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }} .
+          docker push gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/
+          kubectl set image deployment/frontend frontend=gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }}
