@@ -18,6 +18,11 @@
   }
 }
 
+resource "aws_ecr_repository" "frontend" {
+  name = "frontend"
+}
+
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.5.1"
