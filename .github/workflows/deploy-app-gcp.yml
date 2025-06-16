@@ -30,6 +30,10 @@ jobs:
       - name: Configure Docker for GCP
         run: gcloud auth configure-docker
 
+      - name: Terraform Init
+        run: terraform init
+        working-directory: gcp
+
       - name: Export cluster info from Terraform
         run: |
           echo "CLUSTER_NAME=$(terraform output -raw cluster_name)" >> $GITHUB_ENV
