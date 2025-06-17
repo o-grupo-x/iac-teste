@@ -6,7 +6,7 @@ on:
 
 env:
   PROJECT_ID: app-chamada-5706
-  CLUSTER_NAME: frontend-cluster
+  CLUSTER_NAME: app-chamada-stage
   CLUSTER_ZONE: us-west1-a
   REPOSITORY: frontend
   REGION: us-west1
