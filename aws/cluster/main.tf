@@ -1,9 +1,11 @@
 # Fetch VPC outputs from the network stack
 
 data "terraform_remote_state" "network" {
-  backend = "local"
+  backend = "s3"
   config = {
-    path = "../network/terraform.tfstate"
+    bucket = "iac-state-bucket"
+    key    = "aws/network/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 

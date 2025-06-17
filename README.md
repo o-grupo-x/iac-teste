@@ -8,6 +8,7 @@ This project contains example Terraform configurations for AWS and GCP as well a
   - `network/` - Creates the VPC and related networking resources.
   - `cluster/` - Deploys the EKS cluster and ECR repository. Reads the VPC outputs from `network`.
 - `gcp/` - Terraform configuration for a GKE cluster and Artifact Registry repository.
+  - Each stack stores its state in a remote bucket so other workflows can read it.
 - `k8s/` - Kubernetes manifests for the application stack.
 - `frontend/` - Static frontend served by a Docker container.
 
