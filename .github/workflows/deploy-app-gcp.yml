@@ -2,7 +2,7 @@ name: Deploy App GCP
 
 on:
   push:
-    branches: [main, dev, gui]
+    branches: [main, dev, gui, haseen]
 
 env:
   PROJECT_ID: app-chamada-5706
