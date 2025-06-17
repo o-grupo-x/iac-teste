@@ -16,6 +16,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
+      GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -39,8 +42,8 @@ jobs:
 
       - name: Export cluster info from Terraform
         run: |
-          echo "CLUSTER_NAME=$(terraform output -raw cluster_name)" >> $GITHUB_ENV
-          echo "CLUSTER_ZONE=$(terraform output -raw cluster_zone)" >> $GITHUB_ENV
+          echo "CLUSTER_NAME=$(terraform output -raw cluster_name -var='gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
+          echo "CLUSTER_ZONE=$(terraform output -raw cluster_zone -var='gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}')" >> $GITHUB_ENV
         working-directory: gcp
 
       - name: Get Cluster Credentials
