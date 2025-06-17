@@ -91,18 +91,18 @@ jobs:
       # 9️⃣ Espera até o Service do Prometheus ganhar External-IP
       - name: Wait for Prometheus LB IP
         run: |
-          echo "Aguardando External-IP do Prometheus..."
+          echo "Waiting for Prometheus External-IP…"
           for i in {1..30}; do
-            IP=$(kubectl get svc prometheus-kube-prometheus-prometheus \
-                 -n monitoring \
-                 --template='{{.status.loadBalancer.ingress[0].ip}}')
+            IP=$(kubectl get svc -n monitoring \
+                -l app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=kube-prometheus \
+                -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}')
             if [ -n "$IP" ]; then
               echo "PROMETHEUS_IP=$IP" >> $GITHUB_ENV
               exit 0
             fi
             sleep 20
           done
-          echo "ERROR: Prometheus LoadBalancer IP não foi atribuído em tempo." >&2
+          echo "ERROR: no External-IP after waiting." >&2
           exit 1
 
       # 🔟 Exibe o endpoint do Prometheus
