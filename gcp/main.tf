@@ -2,9 +2,8 @@
 resource "google_container_cluster" "frontend" {
   name     = var.cluster_name
   location = var.zone
-
   remove_default_node_pool = true
-  initial_node_count       = 1
+  initial_node_count       = 0
 }
 
 resource "google_container_node_pool" "primary" {
