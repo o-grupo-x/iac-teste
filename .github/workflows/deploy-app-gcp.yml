@@ -8,23 +8,30 @@ env:
   PROJECT_ID: app-chamada-5706
   CLUSTER_NAME: app-chamada-stage
   CLUSTER_ZONE: us-west1-a
-  REPOSITORY: frontend
   REGION: us-west1
+  REPOSITORY: frontend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       # 1️⃣ Checkout, Auth e SDK
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
-        with: credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
-        with: project_id: ${{ env.PROJECT_ID }}
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
       - name: Install GKE Auth Plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
       # 2️⃣ Conecta ao cluster
       - name: Get cluster credentials
@@ -40,7 +47,12 @@ jobs:
           kubectl create namespace stage-app-presente  || true
           kubectl create namespace monitoring          || true
 
-      # 4️⃣ Build & Push da imagem
+      # 4️⃣ Install Helm
+      - name: Install Helm 3
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      # 5️⃣ Build & Push da imagem
       - name: Build & Push Docker Image
         working-directory: frontend
         run: |
@@ -49,16 +61,17 @@ jobs:
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # 5️⃣ Deploy da aplicação no namespace de Stage
+      # 6️⃣ Deploy da aplicação no namespace de Stage
       - name: Deploy frontend to stage-app-presente
         run: |
-          kubectl apply -n stage-app-presente -f k8s/deployment-stage-app-presente.yaml
-          kubectl apply -n stage-app-presente -f k8s/service-stage-app-presente.yaml
+          kubectl apply -n stage-app-presente \
+            -f k8s/deployment-stage-app-presente.yaml \
+            -f k8s/service-stage-app-presente.yaml
           kubectl set image deployment/app-presente-front \
             app-presente-front=$IMAGE \
             -n stage-app-presente
 
-      # 6️⃣ Instalação do Prometheus via Helm no namespace monitoring
+      # 7️⃣ Instalação do Prometheus via Helm no namespace monitoring
       - name: Install Prometheus (kube-prometheus-stack)
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -69,11 +82,11 @@ jobs:
             --set prometheus.service.type=LoadBalancer \
             --set grafana.enabled=false
 
-      # 7️⃣ Espera até o Service do Prometheus ganhar External-IP
+      # 8️⃣ Espera até o Service do Prometheus ganhar External-IP
       - name: Wait for Prometheus LB IP
         run: |
           echo "Aguardando External-IP do Prometheus..."
-          for i in {1..20}; do
+          for i in {1..30}; do
             IP=$(kubectl get svc prometheus-kube-prometheus-prometheus \
                  -n monitoring \
                  --template='{{.status.loadBalancer.ingress[0].ip}}')
@@ -81,12 +94,12 @@ jobs:
               echo "PROMETHEUS_IP=$IP" >> $GITHUB_ENV
               exit 0
             fi
-            sleep 15
+            sleep 20
           done
           echo "ERROR: Prometheus LoadBalancer IP não foi atribuído em tempo." >&2
           exit 1
 
-      # 8️⃣ (Opcional) Notifica ou configura o Grafana na VM
+      # 9️⃣ Exibe o endpoint do Prometheus
       - name: Show Prometheus endpoint
         run: |
           echo "Prometheus is available at http://$PROMETHEUS_IP:9090"
