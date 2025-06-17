@@ -46,6 +46,10 @@ jobs:
             --zone "$CLUSTER_ZONE" \
             --project "$PROJECT_ID"
 
+      - name: Create namespace
+        run: |
+          kubectl create namespace stage-app-presente || true
+
       # 4️⃣ Build & push da imagem
       - name: Build & Push Docker Image
         working-directory: frontend
@@ -54,3 +58,10 @@ jobs:
           docker build -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to Kubernetes
+        run: |
+         kubectl apply -n stage-app-presente -f k8s/
+         kubectl set image deployment/app-presente-front \
+           app-presente-front=$IMAGE \
+           -n stage-app-presente
