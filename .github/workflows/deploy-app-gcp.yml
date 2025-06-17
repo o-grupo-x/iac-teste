@@ -15,30 +15,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # 1️⃣ Autentica no GCP
+      # 1️⃣ Checkout, Auth e SDK
+      - uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
-
+        with: credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-
+        with: project_id: ${{ env.PROJECT_ID }}
       - name: Install GKE Auth Plugin
-        run: |
-          gcloud components install gke-gcloud-auth-plugin --quiet
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
 
-      # 2️⃣ Configure Docker to push to Artifact Registry
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${REGION}-docker.pkg.dev
-
-      # 3️⃣ Conecta ao cluster
+      # 2️⃣ Conecta ao cluster
       - name: Get cluster credentials
         run: |
           gcloud container clusters get-credentials \
@@ -46,11 +34,13 @@ jobs:
             --zone "$CLUSTER_ZONE" \
             --project "$PROJECT_ID"
 
-      - name: Create namespace
+      # 3️⃣ Cria Namespaces
+      - name: Ensure namespaces exist
         run: |
-          kubectl create namespace stage-app-presente || true
+          kubectl create namespace stage-app-presente  || true
+          kubectl create namespace monitoring          || true
 
-      # 4️⃣ Build & push da imagem
+      # 4️⃣ Build & Push da imagem
       - name: Build & Push Docker Image
         working-directory: frontend
         run: |
@@ -59,9 +49,44 @@ jobs:
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy to Kubernetes
+      # 5️⃣ Deploy da aplicação no namespace de Stage
+      - name: Deploy frontend to stage-app-presente
         run: |
-         kubectl apply -n stage-app-presente -f k8s/
-         kubectl set image deployment/app-presente-front \
-           app-presente-front=$IMAGE \
-           -n stage-app-presente
+          kubectl apply -n stage-app-presente -f k8s/deployment-stage-app-presente.yaml
+          kubectl apply -n stage-app-presente -f k8s/service-stage-app-presente.yaml
+          kubectl set image deployment/app-presente-front \
+            app-presente-front=$IMAGE \
+            -n stage-app-presente
+
+      # 6️⃣ Instalação do Prometheus via Helm no namespace monitoring
+      - name: Install Prometheus (kube-prometheus-stack)
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          helm upgrade --install kube-prometheus \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --set prometheus.service.type=LoadBalancer \
+            --set grafana.enabled=false
+
+      # 7️⃣ Espera até o Service do Prometheus ganhar External-IP
+      - name: Wait for Prometheus LB IP
+        run: |
+          echo "Aguardando External-IP do Prometheus..."
+          for i in {1..20}; do
+            IP=$(kubectl get svc prometheus-kube-prometheus-prometheus \
+                 -n monitoring \
+                 --template='{{.status.loadBalancer.ingress[0].ip}}')
+            if [ -n "$IP" ]; then
+              echo "PROMETHEUS_IP=$IP" >> $GITHUB_ENV
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "ERROR: Prometheus LoadBalancer IP não foi atribuído em tempo." >&2
+          exit 1
+
+      # 8️⃣ (Opcional) Notifica ou configura o Grafana na VM
+      - name: Show Prometheus endpoint
+        run: |
+          echo "Prometheus is available at http://$PROMETHEUS_IP:9090"
