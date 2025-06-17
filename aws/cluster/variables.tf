@@ -13,5 +13,3 @@ variable "cluster_name" {
   default     = "eks-stage-cluster"
 }
 
-variable "aws_access_key" {}
-variable "aws_secret_key" {}
