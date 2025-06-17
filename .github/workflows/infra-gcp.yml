@@ -1,7 +1,7 @@
 name: Infra GCP
 
 on:
-  workflow_dispatch: # Rodar manualmente
+  workflow_dispatch:  # executa manualmente
 
 env:
   PROJECT_ID: app-chamada-5706
@@ -10,34 +10,35 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Google Cloud
-        uses: google-github-actions/setup-gcloud@v2
+      # 1️⃣ autentica e exporta GOOGLE_APPLICATION_CREDENTIALS
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+
+      # 2️⃣ instala gcloud (kubectl incluído)
+      - uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_CREDENTIALS_JSON }}
-          export_default_credentials: true
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      # 3️⃣ instala Terraform
+      - uses: hashicorp/setup-terraform@v3
 
+      # 4️⃣ init / validate / plan / apply
       - name: Terraform Init
-        run: |
-          echo '${{ secrets.GCP_CREDENTIALS_JSON }}' > /tmp/gcp-key.json
-          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
-          terraform init
         working-directory: gcp
+        run: terraform init
 
       - name: Terraform Validate
-        run: terraform validate
         working-directory: gcp
+        run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan
         working-directory: gcp
-        
+        run: terraform plan -var="gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}"
+
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}"
         working-directory: gcp
+        run: terraform apply -auto-approve -var="gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}"
