@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP project ID"
   type        = string
-  default     = "app-chamada-5706"
+  default     = "app-chamada-stage"
 }
 
 variable "region" {
