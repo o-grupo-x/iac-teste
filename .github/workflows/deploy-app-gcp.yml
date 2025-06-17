@@ -5,7 +5,7 @@ on:
     branches: [main, dev, gui]
 
 env:
-  PROJECT_ID: app-chamada-5706
+  PROJECT_ID: app-chamada-stage
   CLUSTER_NAME: app-chamada-stage
   CLUSTER_ZONE: us-west1-a
   REGION: us-west1
