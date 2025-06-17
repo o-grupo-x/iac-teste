@@ -37,7 +37,9 @@ jobs:
 
       - name: Terraform Plan
         working-directory: gcp
-        run: terraform plan -var="gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}"
+        env:
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # <-- aqui!
+        run: terraform plan
 
       - name: Terraform Apply
         working-directory: gcp
