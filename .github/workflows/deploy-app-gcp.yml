@@ -54,9 +54,3 @@ jobs:
           docker build -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      # 5️⃣ Deploy no Kubernetes
-      # - name: Deploy to Kubernetes
-      #   run: |
-      #     kubectl apply -f k8s/
-      #     kubectl set image deployment/frontend frontend=$IMAGE
