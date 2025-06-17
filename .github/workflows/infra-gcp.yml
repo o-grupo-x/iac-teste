@@ -5,6 +5,8 @@ on:
 
 env:
   PROJECT_ID: app-chamada-5706
+  REGION: us-west1       # nova região
+  ZONE: us-west1-a
 
 jobs:
   terraform:
