@@ -20,13 +20,34 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
+      - name: Terraform Init Network
         run: terraform init
-        working-directory: aws
+        working-directory: aws/network
 
-      - name: Terraform Plan
+      - name: Terraform Validate Network
+        run: terraform validate
+        working-directory: aws/network
+
+      - name: Terraform Plan Network
         run: terraform plan
-        working-directory: aws
-      - name: Terraform Apply
+        working-directory: aws/network
+
+      - name: Terraform Apply Network
         run: terraform apply -auto-approve
-        working-directory: aws
+        working-directory: aws/network
+
+      - name: Terraform Init Cluster
+        run: terraform init
+        working-directory: aws/cluster
+
+      - name: Terraform Validate Cluster
+        run: terraform validate
+        working-directory: aws/cluster
+
+      - name: Terraform Plan Cluster
+        run: terraform plan
+        working-directory: aws/cluster
+
+      - name: Terraform Apply Cluster
+        run: terraform apply -auto-approve
+        working-directory: aws/cluster
