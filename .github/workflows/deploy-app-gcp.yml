@@ -59,4 +59,3 @@ jobs:
           kubectl apply -f k8s/
           kubectl set image deployment/frontend frontend=gcr.io/${{ env.PROJECT_ID }}/frontend:${{ github.sha }}
 
-          
