@@ -71,8 +71,8 @@ jobs:
       - name: Deploy frontend to stage-app-presente
         run: |
           kubectl apply -n stage-app-presente \
-            -f k8s/deployment-stage-app-presente.yaml \
-            -f k8s/service-stage-app-presente.yaml
+            -f k8s/frontend-deployment.yaml \
+            -f k8s/frontend-service.yaml
           kubectl set image deployment/app-presente-front \
             app-presente-front=$IMAGE \
             -n stage-app-presente
