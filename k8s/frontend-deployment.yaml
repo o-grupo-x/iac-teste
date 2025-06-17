@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: # A pipeline vai setar a imagem automaticamente
+          image: guilherme310402/app_presente_front:latest
           ports:
             - containerPort: 80
 ---
