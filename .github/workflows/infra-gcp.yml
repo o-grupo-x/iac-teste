@@ -43,4 +43,6 @@ jobs:
 
       - name: Terraform Apply
         working-directory: gcp
-        run: terraform apply -auto-approve -var="gcp_credentials=${{ secrets.GCP_CREDENTIALS_JSON }}"
+        env:
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
+        run: terraform apply -auto-approve
