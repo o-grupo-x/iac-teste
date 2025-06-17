@@ -17,7 +17,7 @@ resource "google_container_node_pool" "primary" {
 }
 
 resource "google_artifact_registry_repository" "frontend" {
-  location      = "var.region"
+  location      = var.region
   repository_id = "frontend"
   description   = "Frontend container repository"
   format        = "DOCKER"
