@@ -15,7 +15,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Checkout, Auth e SDK
+      # 1️⃣ Checkout e Autenticação no GCP
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -28,6 +28,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
+          export_default_credentials: true
 
       - name: Install GKE Auth Plugin
         run: |
@@ -41,18 +42,23 @@ jobs:
             --zone "$CLUSTER_ZONE" \
             --project "$PROJECT_ID"
 
-      # 3️⃣ Cria Namespaces
+      # 3️⃣ Garantir Namespaces
       - name: Ensure namespaces exist
         run: |
           kubectl create namespace stage-app-presente  || true
           kubectl create namespace monitoring          || true
 
-      # 4️⃣ Install Helm
+      # 4️⃣ Instalar Helm 3
       - name: Install Helm 3
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-      # 5️⃣ Build & Push da imagem
+      # 5️⃣ Configurar Docker para Artifact Registry
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+      # 6️⃣ Build & Push da imagem do frontend
       - name: Build & Push Docker Image
         working-directory: frontend
         run: |
@@ -61,7 +67,7 @@ jobs:
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # 6️⃣ Deploy da aplicação no namespace de Stage
+      # 7️⃣ Deploy da aplicação no namespace de Stage
       - name: Deploy frontend to stage-app-presente
         run: |
           kubectl apply -n stage-app-presente \
@@ -71,7 +77,7 @@ jobs:
             app-presente-front=$IMAGE \
             -n stage-app-presente
 
-      # 7️⃣ Instalação do Prometheus via Helm no namespace monitoring
+      # 8️⃣ Instalação do Prometheus via Helm no namespace monitoring
       - name: Install Prometheus (kube-prometheus-stack)
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -82,7 +88,7 @@ jobs:
             --set prometheus.service.type=LoadBalancer \
             --set grafana.enabled=false
 
-      # 8️⃣ Espera até o Service do Prometheus ganhar External-IP
+      # 9️⃣ Espera até o Service do Prometheus ganhar External-IP
       - name: Wait for Prometheus LB IP
         run: |
           echo "Aguardando External-IP do Prometheus..."
@@ -99,7 +105,7 @@ jobs:
           echo "ERROR: Prometheus LoadBalancer IP não foi atribuído em tempo." >&2
           exit 1
 
-      # 9️⃣ Exibe o endpoint do Prometheus
+      # 🔟 Exibe o endpoint do Prometheus
       - name: Show Prometheus endpoint
         run: |
           echo "Prometheus is available at http://$PROMETHEUS_IP:9090"
