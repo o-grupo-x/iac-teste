@@ -1,34 +1,35 @@
 name: Infra GCP
 
 on:
-  workflow_dispatch:  # executa manualmente
+  workflow_dispatch:          # executa manualmente
 
 env:
-  PROJECT_ID: app-chamada-5706
-  REGION: us-west1       # nova região
+  PROJECT_ID: app-chamada-stage
+  REGION: us-west1
   ZONE: us-west1-a
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
+      # 0️⃣  Checkout
       - uses: actions/checkout@v4
 
-      # 1️⃣ autentica e exporta GOOGLE_APPLICATION_CREDENTIALS
+      # 1️⃣  Autenticação GCP
       - name: Auth to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
-      # 2️⃣ instala gcloud (kubectl incluído)
+      # 2️⃣  Instala gcloud (kubectl incluído)
       - uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      # 3️⃣ instala Terraform
+      # 3️⃣  Instala Terraform
       - uses: hashicorp/setup-terraform@v3
 
-      # 4️⃣ init / validate / plan / apply
+      # 4️⃣  terraform init / validate / plan
       - name: Terraform Init
         working-directory: gcp
         run: terraform init
@@ -40,9 +41,25 @@ jobs:
       - name: Terraform Plan
         working-directory: gcp
         env:
-          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # <-- aqui!
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
         run: terraform plan
 
+      # 🔄 **NOVO** Importa o Artifact Registry se ele já existir
+      - name: Import existing Artifact Registry (if any)
+        working-directory: gcp
+        env:
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          REGION: ${{ env.REGION }}
+        run: |
+          set +e                    # não falha se não existir
+          terraform import -no-color \
+            google_artifact_registry_repository.frontend \
+            projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
+          # ignora código de saída ≠0 (repo inexistente)
+          true
+          set -e
+
+      # 5️⃣  terraform apply
       - name: Terraform Apply
         working-directory: gcp
         env:
