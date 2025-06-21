@@ -1,12 +1,34 @@
-name: Bootstrap TF state
+name: Bootstrap – create tfstate bucket
 on: workflow_dispatch
+
+env:
+  PROJECT_ID: app-chamada-stage
+  BUCKET:    iac-stage-tfstate        # ⇠ mude se quiser
+  REGION:    us-west1
+
 jobs:
   create-bucket:
     runs-on: ubuntu-latest
     steps:
+      # 1. coloca o JSON da service-account no runner
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
-      - run: |
-          gsutil mb -l us-west1 gs://iac-stage-tfstate
-          gsutil versioning set on gs://iac-stage-tfstate
+
+      # 2. instala Cloud SDK + gsutil *já* usando o mesmo ADC
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          install_components: 'gsutil'
+          export_default_credentials: true   # ←  importante!
+
+      # 3. cria o bucket (roda só se não existir)
+      - name: Create state bucket (idempotent)
+        run: |
+          if gsutil ls -b gs://${BUCKET} >/dev/null 2>&1; then
+            echo "✅  Bucket gs://${BUCKET} já existe"
+          else
+            echo "🪣  Criando bucket gs://${BUCKET}"
+            gsutil mb -p ${PROJECT_ID} -l ${REGION} gs://${BUCKET}
+            gsutil versioning set on gs://${BUCKET}
+          fi
