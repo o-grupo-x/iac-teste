@@ -56,24 +56,32 @@ jobs:
           REGION:     ${{ env.REGION }}
         run: |
           set -e
-          echo "🔍 Verificando se o recurso já está no state…"
-          if terraform state list \
-               | grep -q '^google_artifact_registry_repository.frontend$'; then
-            echo "✅ Já está no state – passo ignorado."
-            exit 0
+          echo "🔍 Verificando se já existe um terraform.tfstate local…"
+          if [ ! -f terraform.tfstate ]; then
+            echo "ℹ️  Nenhum state local encontrado – pulando verificação de state."
+            NEED_IMPORT=true
+          else
+            if terraform state list | grep -q '^google_artifact_registry_repository.frontend$'; then
+              echo "✅  Repositório já está no state – nada a fazer."
+              NEED_IMPORT=false
+            else
+              NEED_IMPORT=true
+            fi
           fi
 
-          echo "🔍 Verificando se o repositório existe no projeto…"
-          if gcloud artifacts repositories describe frontend \
-                --location=${REGION} \
-                --project=${PROJECT_ID} \
-                --quiet >/dev/null 2>&1; then
-            echo "📦 Repo existe – importando para o state."
-            terraform import -no-color \
-              google_artifact_registry_repository.frontend \
-              projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
-          else
-            echo "ℹ️  Repo ainda não existe – será criado no apply."
+          if [ "$NEED_IMPORT" = true ]; then
+            echo "🔍  Verificando se o repositório existe no projeto GCP…"
+            if gcloud artifacts repositories describe frontend \
+                  --location=${REGION} \
+                  --project=${PROJECT_ID} \
+                  --quiet >/dev/null 2>&1; then
+              echo "📦  Repo encontrado – importando para o state."
+              terraform import \
+                google_artifact_registry_repository.frontend \
+                projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
+            else
+              echo "ℹ️  Repo ainda não existe – será criado no apply."
+            fi
           fi
 
       # 6️⃣  Apply
