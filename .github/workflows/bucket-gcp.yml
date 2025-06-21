@@ -1,0 +1,12 @@
+name: Bootstrap TF state
+on: workflow_dispatch
+jobs:
+  create-bucket:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
+      - run: |
+          gsutil mb -l us-west1 gs://iac-stage-tfstate
+          gsutil versioning set on gs://iac-stage-tfstate
