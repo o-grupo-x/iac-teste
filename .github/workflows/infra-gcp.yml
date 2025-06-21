@@ -48,41 +48,36 @@ jobs:
           TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
         run: terraform plan
 
-      # 5️⃣ Importa o Artifact Registry apenas se ainda não estiver no state
+      # 5️⃣  Importa o Artifact Registry se ele JÁ existir
       - name: Import existing Artifact Registry (first run only)
         working-directory: gcp
         env:
           PROJECT_ID: ${{ env.PROJECT_ID }}
           REGION:     ${{ env.REGION }}
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # 👈  DISPONÍVEL PARA O IMPORT
         run: |
           set -e
-          echo "🔍 Verificando se já existe um terraform.tfstate local…"
+
+          echo "🔍 Verificando se terraform.tfstate já existe…"
           if [ ! -f terraform.tfstate ]; then
-            echo "ℹ️  Nenhum state local encontrado – pulando verificação de state."
-            NEED_IMPORT=true
-          else
-            if terraform state list | grep -q '^google_artifact_registry_repository.frontend$'; then
-              echo "✅  Repositório já está no state – nada a fazer."
-              NEED_IMPORT=false
-            else
-              NEED_IMPORT=true
-            fi
+            echo "ℹ️  Nenhum state local – import possível."
           fi
 
-          if [ "$NEED_IMPORT" = true ]; then
-            echo "🔍  Verificando se o repositório existe no projeto GCP…"
-            if gcloud artifacts repositories describe frontend \
-                  --location=${REGION} \
-                  --project=${PROJECT_ID} \
-                  --quiet >/dev/null 2>&1; then
-              echo "📦  Repo encontrado – importando para o state."
-              terraform import \
-                google_artifact_registry_repository.frontend \
-                projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
-            else
-              echo "ℹ️  Repo ainda não existe – será criado no apply."
-            fi
+          echo "🔍 Verificando se o repositório 'frontend' existe no projeto…"
+          if gcloud artifacts repositories describe frontend \
+                --location=${REGION} \
+                --project=${PROJECT_ID} \
+                --quiet >/dev/null 2>&1; then
+            echo "📦  Repo encontrado – importando para o state."
+            terraform import \
+              -input=false \                      # 🚫 sem prompt
+              -lock-timeout=0s \                  # opcional
+              google_artifact_registry_repository.frontend \
+              projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
+          else
+            echo "✅  Repo ainda não existe – será criado no apply."
           fi
+
 
       # 6️⃣  Apply
       - name: Terraform Apply
