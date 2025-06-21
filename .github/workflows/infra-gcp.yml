@@ -54,28 +54,27 @@ jobs:
         env:
           PROJECT_ID: ${{ env.PROJECT_ID }}
           REGION:     ${{ env.REGION }}
-          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # 👈  DISPONÍVEL PARA O IMPORT
+          TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
         run: |
           set -e
 
-          echo "🔍 Verificando se terraform.tfstate já existe…"
-          if [ ! -f terraform.tfstate ]; then
-            echo "ℹ️  Nenhum state local – import possível."
+          echo "🔍  Verificando se recurso já está no state…"
+          if terraform state list 2>/dev/null | grep -q '^google_artifact_registry_repository.frontend$'; then
+            echo "✅  Já está no state – pulando import."
+            exit 0
           fi
 
-          echo "🔍 Verificando se o repositório 'frontend' existe no projeto…"
+          echo "🔍  Verificando se o repositório existe no projeto GCP…"
           if gcloud artifacts repositories describe frontend \
-                --location=${REGION} \
-                --project=${PROJECT_ID} \
+                --location="${REGION}" \
+                --project="${PROJECT_ID}" \
                 --quiet >/dev/null 2>&1; then
             echo "📦  Repo encontrado – importando para o state."
-            terraform import \
-              -input=false \                      # 🚫 sem prompt
-              -lock-timeout=0s \                  # opcional
+            terraform import -input=false -no-color \
               google_artifact_registry_repository.frontend \
-              projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend
+              "projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend"
           else
-            echo "✅  Repo ainda não existe – será criado no apply."
+            echo "ℹ️  Repo ainda não existe – será criado no terraform apply."
           fi
 
 
