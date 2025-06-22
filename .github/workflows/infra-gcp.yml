@@ -2,16 +2,16 @@
 name: Infra GCP
 
 on:
-  workflow_dispatch:            # executa manualmente no UI
+  workflow_dispatch:       # dispara manualmente no GitHub UI
 
 env:
   PROJECT_ID: app-chamada-stage
   REGION:     us-west1
   ZONE:       us-west1-a
-  BUCKET:     iac-stage-tfstate          # bucket remoto do state
-  CLUSTER:    app-chamada-stage          # nome exato do cluster
-  NODEPOOL:   primary                    # nome do node-pool
-  REPO_NAME:  frontend                   # Artifact Registry repo
+  BUCKET:     iac-stage-tfstate      # bucket remoto do state
+  CLUSTER:    app-chamada-stage      # nome exato do cluster
+  NODEPOOL:   primary                # nome do node-pool
+  REPO_NAME:  frontend               # Artifact Registry repo
 
 jobs:
   terraform:
@@ -22,7 +22,7 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v4
 
-    # 1️⃣  Auth no GCP (expõe GOOGLE_APPLICATION_CREDENTIALS)
+    # 1️⃣  Autenticação no GCP – exporta GOOGLE_APPLICATION_CREDENTIALS
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -34,31 +34,30 @@ jobs:
       with:
         project_id: ${{ env.PROJECT_ID }}
 
-    # 3️⃣  Cria o bucket do state (idempotente)
+    # 3️⃣  Cria (ou verifica) o bucket remoto do state
     - name: Create state bucket (idempotent)
       run: |
         if gsutil ls -b "gs://${BUCKET}" >/dev/null 2>&1; then
           echo "✅  Bucket gs://${BUCKET} já existe"
         else
           echo "🪣  Criando bucket gs://${BUCKET}…"
-          gsutil mb -l $REGION "gs://${BUCKET}"
-          # opcional: versão de objetos
+          gsutil mb -l "${REGION}" "gs://${BUCKET}"
           gsutil versioning set on "gs://${BUCKET}"
         fi
 
     # 4️⃣  Instala Terraform
-    - uses: hashicorp/setup-terraform@v3
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
-    # 5️⃣  Terraform init – agora com backend remoto
+    # 5️⃣  terraform init (backend remoto)
     - name: Terraform Init
       working-directory: gcp
       run: |
-        terraform init -input=false \
+        terraform init -input=false -upgrade \
           -backend-config="bucket=${BUCKET}" \
-          -backend-config="prefix=terraform" \
-          -upgrade
+          -backend-config="prefix=terraform"
 
-    # 6️⃣  Terraform Validate / Plan
+    # 6️⃣  Validate & Plan
     - name: Terraform Validate
       working-directory: gcp
       run: terraform validate -no-color
@@ -69,66 +68,76 @@ jobs:
         TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
       run: terraform plan -no-color
 
-    # 5️⃣  Importa o Artifact Registry se ele JÁ existir
+    # 7️⃣  Importa o Artifact Registry caso já exista
     - name: Import existing Artifact Registry (if any)
       working-directory: gcp
       env:
         PROJECT_ID: ${{ env.PROJECT_ID }}
         REGION:     ${{ env.REGION }}
-        TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}  # ← aqui!
       run: |
         set -e
-        echo "🔍  Verificando se recurso já está no state…"
         if terraform state list 2>/dev/null | grep -q \
-            '^google_artifact_registry_repository.frontend$'; then
-          echo "✅  Já está no state – pulando import."
-          exit 0
-        fi
-
-        echo "🔍  Verificando se o repositório existe no projeto GCP…"
-        if gcloud artifacts repositories describe frontend \
-              --location="${REGION}" \
-              --project="${PROJECT_ID}" \
-              --quiet >/dev/null 2>&1; then
-          echo "📦  Repo encontrado – importando para o state."
+             '^google_artifact_registry_repository.frontend$'; then
+          echo "✅  Repo já no state"
+        elif gcloud artifacts repositories describe "${REPO_NAME}" \
+                 --location "${REGION}" --project "${PROJECT_ID}" --quiet \
+                 >/dev/null 2>&1; then
+          echo "📦  Importando repo '${REPO_NAME}' para o state"
           terraform import -input=false -no-color \
             google_artifact_registry_repository.frontend \
-            "projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend"
+            "projects/${PROJECT_ID}/locations/${REGION}/repositories/${REPO_NAME}"
         else
-          echo "ℹ️  Repo ainda não existe – será criado no terraform apply."
+          echo "ℹ️  Repo ainda não existe – será criado no apply"
         fi
 
-    # 8️⃣  IMPORTA Cluster e NodePool, se já existirem
-    # ⬇️  Importa o cluster se ele já existir
+    # 8️⃣  Importa o cluster GKE se já existir
     - name: Import existing GKE cluster (if any)
       working-directory: gcp
       env:
         PROJECT_ID: ${{ env.PROJECT_ID }}
         ZONE:       ${{ env.ZONE }}
-        TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # ← aqui!
+        CLUSTER:    ${{ env.CLUSTER }}
       run: |
         set -e
-        echo "🔍  Verificando se o cluster já está no state…"
         if terraform state list 2>/dev/null | grep -q \
-            '^google_container_cluster.frontend$'; then
-          echo "✅  Já está no state – pulando import."
-          exit 0
-        fi
-
-        echo "🔍  Verificando se o cluster existe no projeto…"
-        if gcloud container clusters describe app-chamada-stage \
-              --zone "${ZONE}" \
-              --project "${PROJECT_ID}" \
-              --quiet >/dev/null 2>&1; then
-          echo "📦  Cluster encontrado – importando para o state."
+             '^google_container_cluster.frontend$'; then
+          echo "✅  Cluster já no state"
+        elif gcloud container clusters describe "${CLUSTER}" \
+                 --zone "${ZONE}" --project "${PROJECT_ID}" --quiet \
+                 >/dev/null 2>&1; then
+          echo "📦  Importando cluster '${CLUSTER}'"
           terraform import -input=false -no-color \
             google_container_cluster.frontend \
-            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/app-chamada-stage"
+            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER}"
         else
-          echo "ℹ️  Cluster ainda não existe – será criado no terraform apply."
+          echo "ℹ️  Cluster ainda não existe – será criado no apply"
         fi
 
-    # 9️⃣  Apply
+    # 9️⃣  Importa o node-pool “primary” se já existir
+    - name: Import existing node-pool (if any)
+      working-directory: gcp
+      env:
+        PROJECT_ID: ${{ env.PROJECT_ID }}
+        ZONE:       ${{ env.ZONE }}
+        CLUSTER:    ${{ env.CLUSTER }}
+        NODEPOOL:   ${{ env.NODEPOOL }}
+      run: |
+        set -e
+        if terraform state list 2>/dev/null | grep -q \
+             '^google_container_node_pool.primary$'; then
+          echo "✅  Node-pool já no state"
+        elif gcloud container node-pools describe "${NODEPOOL}" \
+                 --cluster "${CLUSTER}" --zone "${ZONE}" \
+                 --project "${PROJECT_ID}" --quiet >/dev/null 2>&1; then
+          echo "📦  Importando node-pool '${NODEPOOL}'"
+          terraform import -input=false -no-color \
+            google_container_node_pool.primary \
+            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER}/nodePools/${NODEPOOL}"
+        else
+          echo "ℹ️  Node-pool ainda não existe – será criado no apply"
+        fi
+
+    # 🔟  Apply
     - name: Terraform Apply
       working-directory: gcp
       env:
