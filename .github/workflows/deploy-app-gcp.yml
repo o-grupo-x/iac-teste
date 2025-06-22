@@ -89,14 +89,14 @@ jobs:
             --set grafana.enabled=false
 
       # 9️⃣ Espera até o Service do Prometheus ganhar External-IP
+      # substitua o bloco atual pelo abaixo
       - name: Wait for Prometheus LB IP
         run: |
           echo "⏳  Waiting for Prometheus External-IP…"
           for i in {1..30}; do
-            IP=$(kubectl get svc -n monitoring \
-                -l app.kubernetes.io/component=prometheus \
-                -o jsonpath='{.items[*].status.loadBalancer.ingress[*].ip}' 2>/dev/null || true)
-
+            IP=$(kubectl get svc kube-prometheus-kube-prome-prometheus \
+                  -n monitoring \
+                  -o jsonpath='{.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}')
             if [[ -n "$IP" ]]; then
               echo "✅  Prometheus IP: $IP"
               echo "PROMETHEUS_IP=$IP" >> "$GITHUB_ENV"
@@ -106,7 +106,6 @@ jobs:
           done
           echo "❌  Prometheus LoadBalancer IP não foi atribuído no tempo limite." >&2
           exit 1
-
 
       # 🔟 Exibe o endpoint do Prometheus
       - name: Show Prometheus endpoint
