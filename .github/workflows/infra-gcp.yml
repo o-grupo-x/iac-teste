@@ -69,25 +69,33 @@ jobs:
         TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}
       run: terraform plan -no-color
 
-    # 7️⃣  IMPORTA Artifact Registry, se já existir
+    # 5️⃣  Importa o Artifact Registry se ele JÁ existir
     - name: Import existing Artifact Registry (if any)
       working-directory: gcp
       env:
         PROJECT_ID: ${{ env.PROJECT_ID }}
         REGION:     ${{ env.REGION }}
-        REPO_NAME:  ${{ env.REPO_NAME }}
+        TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}  # ← aqui!
       run: |
         set -e
-        if terraform state list 2>/dev/null | grep -q "^google_artifact_registry_repository.${REPO_NAME}$"; then
-          echo "✅  Repo já no state"
-        elif gcloud artifacts repositories describe "${REPO_NAME}" \
-                --location="${REGION}" --project="${PROJECT_ID}" --quiet >/dev/null 2>&1; then
-          echo "📦  Importando repo '${REPO_NAME}' para o state"
+        echo "🔍  Verificando se recurso já está no state…"
+        if terraform state list 2>/dev/null | grep -q \
+            '^google_artifact_registry_repository.frontend$'; then
+          echo "✅  Já está no state – pulando import."
+          exit 0
+        fi
+
+        echo "🔍  Verificando se o repositório existe no projeto GCP…"
+        if gcloud artifacts repositories describe frontend \
+              --location="${REGION}" \
+              --project="${PROJECT_ID}" \
+              --quiet >/dev/null 2>&1; then
+          echo "📦  Repo encontrado – importando para o state."
           terraform import -input=false -no-color \
-            "google_artifact_registry_repository.${REPO_NAME}" \
-            "projects/${PROJECT_ID}/locations/${REGION}/repositories/${REPO_NAME}"
+            google_artifact_registry_repository.frontend \
+            "projects/${PROJECT_ID}/locations/${REGION}/repositories/frontend"
         else
-          echo "ℹ️  Repo não existe – será criado pelo apply"
+          echo "ℹ️  Repo ainda não existe – será criado no terraform apply."
         fi
 
     # 8️⃣  IMPORTA Cluster e NodePool, se já existirem
