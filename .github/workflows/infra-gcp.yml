@@ -99,35 +99,33 @@ jobs:
         fi
 
     # 8️⃣  IMPORTA Cluster e NodePool, se já existirem
+    # ⬇️  Importa o cluster se ele já existir
     - name: Import existing GKE cluster (if any)
       working-directory: gcp
       env:
         PROJECT_ID: ${{ env.PROJECT_ID }}
         ZONE:       ${{ env.ZONE }}
-        CLUSTER:    ${{ env.CLUSTER }}
-        NODEPOOL:   ${{ env.NODEPOOL }}
+        TF_VAR_gcp_credentials: ${{ secrets.GCP_CREDENTIALS_JSON }}   # ← aqui!
       run: |
         set -e
-        # Cluster
-        if terraform state list 2>/dev/null | grep -q "^google_container_cluster.frontend$"; then
-          echo "✅  Cluster já no state"
-        elif gcloud container clusters describe "${CLUSTER}" \
-                --zone "${ZONE}" --project "${PROJECT_ID}" --quiet >/dev/null 2>&1; then
-          echo "📦  Importando cluster '${CLUSTER}'"
+        echo "🔍  Verificando se o cluster já está no state…"
+        if terraform state list 2>/dev/null | grep -q \
+            '^google_container_cluster.frontend$'; then
+          echo "✅  Já está no state – pulando import."
+          exit 0
+        fi
+
+        echo "🔍  Verificando se o cluster existe no projeto…"
+        if gcloud container clusters describe app-chamada-stage \
+              --zone "${ZONE}" \
+              --project "${PROJECT_ID}" \
+              --quiet >/dev/null 2>&1; then
+          echo "📦  Cluster encontrado – importando para o state."
           terraform import -input=false -no-color \
             google_container_cluster.frontend \
-            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER}"
-        fi
-        # Node-pool
-        if terraform state list 2>/dev/null | grep -q "^google_container_node_pool.primary$"; then
-          echo "✅  Node-pool já no state"
-        elif gcloud container node-pools describe "${NODEPOOL}" \
-                --cluster "${CLUSTER}" --zone "${ZONE}" --project "${PROJECT_ID}" \
-                --quiet >/dev/null 2>&1; then
-          echo "📦  Importando node-pool '${NODEPOOL}'"
-          terraform import -input=false -no-color \
-            google_container_node_pool.primary \
-            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER}/nodePools/${NODEPOOL}"
+            "projects/${PROJECT_ID}/locations/${ZONE}/clusters/app-chamada-stage"
+        else
+          echo "ℹ️  Cluster ainda não existe – será criado no terraform apply."
         fi
 
     # 9️⃣  Apply
